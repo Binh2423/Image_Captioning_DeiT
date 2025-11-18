@@ -159,11 +159,45 @@ class Trainer:
 
         for batch in t_object:
 
-            step_results,loss = self.train_on_batch(batch, results)
-            running_loss += loss.item()
+            # Call train_on_batch and handle different return types
+            batch_output = self.train_on_batch(batch, results)
+            
+            # Handle different return types from train_on_batch
+            if isinstance(batch_output, tuple):
+                # Expected: (step_results, loss) or (step_results, loss, ...)
+                if len(batch_output) >= 2:
+                    step_results, loss = batch_output[0], batch_output[1]
+                else:
+                    # Single element tuple? Treat as loss
+                    step_results = {}
+                    loss = batch_output[0]
+            elif isinstance(batch_output, dict):
+                # Dict with 'loss' and/or 'step_results' keys
+                step_results = batch_output.get('step_results', {})
+                loss = batch_output.get('loss', batch_output.get('logits', None))
+                if loss is None:
+                    raise ValueError("train_on_batch returned dict without 'loss' or 'logits' key")
+            elif torch.is_tensor(batch_output):
+                # Just a tensor (logits) - compute loss ourselves
+                x, y = batch
+                x, y = x.to(self.device), y.to(self.device)
+                loss = self.criteron(batch_output, y)
+                step_results = results.update(batch_output, y)
+            else:
+                raise TypeError(f"Unexpected return type from train_on_batch: {type(batch_output)}")
+            
+            # Convert loss to float safely
+            if torch.is_tensor(loss):
+                loss_value = loss.item()
+            elif isinstance(loss, (int, float)):
+                loss_value = float(loss)
+            else:
+                raise TypeError(f"Loss must be a tensor or number, got {type(loss)}")
+            
+            running_loss += loss_value
 
             lr = f"{self.scheduler.get_last_lr()[0]}" if self.scheduler is not None else ""
-            dsc = self._format(step_results) + f",loss={loss.item()},lr={lr}" 
+            dsc = self._format(step_results) + f",loss={loss_value},lr={lr}" 
             t_object.set_description(dsc)
 
         running_loss /= len(loader)
