@@ -1,5 +1,6 @@
 from .encoder import DeiT_LFE_MSG_Encoder, LFE, MSG
 from .decoder import BiLSTM_MDSA_C_Encoder, MDSA_C, BiLSTMDecoder
+from .simple_decoder import SimpleBiLSTMDecoder
 from .captioning_model import CaptioningModel
 
 __all__ = [
@@ -9,5 +10,6 @@ __all__ = [
     'BiLSTM_MDSA_C_Encoder',
     'MDSA_C',
     'BiLSTMDecoder',
+    'SimpleBiLSTMDecoder',
     'CaptioningModel'
 ]

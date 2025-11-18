@@ -9,7 +9,7 @@ import logging.config
 from torch import Tensor
 from torch.optim import AdamW
 from torch.utils.data import DataLoader
-from models import CaptioningModel
+from models import CaptioningModel, SimpleBiLSTMDecoder
 from datasets import CaptionsDataset
 from utils import Tokenizer, TensorTuple, read_json, seed_everything
 from losses import Seq2SeqCrossentropy
@@ -270,6 +270,9 @@ def main(args: Args):
     ### Creating the model
     logger.info('creating model, optimizer, loss & trainer instances')
 
+    # Create the captioning model with config parameters
+    # The new CaptioningModel is robust and will create components as needed
+    # If decoder creation fails, it will be None and we can set a fallback
     model = CaptioningModel(
         vocab_size=vocab_size,
         embed_dim=config.get('embed_dim', 256),
@@ -284,6 +287,21 @@ def main(args: Args):
         use_bilstm_encoder=config.get('use_bilstm_encoder', False),
         device=device
     ).to(device)
+    
+    # Check if decoder was created, otherwise use fallback
+    if model.decoder is None:
+        logger.warning("Primary decoder not available, using SimpleBiLSTMDecoder fallback")
+        decoder_visual_dim = config.get('hidden_dim', 512) if model.use_bilstm_encoder else config.get('visual_dim', 768)
+        model.decoder = SimpleBiLSTMDecoder(
+            vocab_size=vocab_size,
+            embed_dim=config.get('embed_dim', 256),
+            hidden_dim=config.get('hidden_dim', 512),
+            visual_dim=decoder_visual_dim,
+            num_layers=config.get('num_decoder_layers', 1),
+            dropout=config.get('dropout', 0.1),
+            pad_idx=pad_idx
+        ).to(device)
+        logger.info("SimpleBiLSTMDecoder fallback installed successfully")
 
     last_weights, num_epochs = read_weights_folder(weights_folder)
 
