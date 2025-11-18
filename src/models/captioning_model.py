@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+from typing import Optional
 from .encoder import DeiT_LFE_MSG_Encoder
 from .decoder import BiLSTMDecoder, BiLSTM_MDSA_C_Encoder
 
@@ -12,35 +13,43 @@ class CaptioningModel(nn.Module):
     This model supports both training (with teacher forcing) and inference (with generation).
     """
     def __init__(self,
-                 vocab_size,
-                 embed_dim=256,
-                 hidden_dim=512,
-                 visual_dim=768,
-                 num_decoder_layers=1,
-                 num_heads=8,
-                 dropout=0.1,
-                 deit_model_name='deit_base_patch16_224',
-                 pretrained=True,
-                 pad_idx=0,
-                 use_bilstm_encoder=False,
-                 device='cpu',
+                 vocab_size: int,
+                 embed_dim: Optional[int] = None,
+                 hidden_dim: int = 512,
+                 visual_dim: int = 768,
+                 num_decoder_layers: int = 1,
+                 num_heads: int = 8,
+                 dropout: float = 0.1,
+                 deit_model_name: str = 'deit_base_patch16_224',
+                 pretrained: bool = True,
+                 pad_idx: int = 0,
+                 use_bilstm_encoder: bool = False,
+                 device: str = 'cpu',
                  **kwargs):
         """
+        Complete image captioning model combining DeiT encoder with BiLSTM decoder.
+        
         Args:
             vocab_size: Size of vocabulary
-            embed_dim: Dimension of word embeddings
-            hidden_dim: Hidden dimension for LSTM decoder
-            visual_dim: Output dimension from DeiT encoder (typically 768)
-            num_decoder_layers: Number of LSTM layers in decoder
-            num_heads: Number of attention heads
-            dropout: Dropout rate
-            deit_model_name: Name of DeiT model from timm
-            pretrained: Whether to use pretrained DeiT weights
-            pad_idx: Padding token index
-            use_bilstm_encoder: Whether to use BiLSTM+MDSA-C on visual features before decoding
-            device: Device to run on
+            embed_dim: Dimension of word embeddings. If None, defaults to 256.
+            hidden_dim: Hidden dimension for LSTM decoder (default: 512)
+            visual_dim: Output dimension from DeiT encoder (default: 768)
+            num_decoder_layers: Number of LSTM layers in decoder (default: 1)
+            num_heads: Number of attention heads (default: 8)
+            dropout: Dropout rate (default: 0.1)
+            deit_model_name: Name of DeiT model from timm (default: 'deit_base_patch16_224')
+            pretrained: Whether to use pretrained DeiT weights (default: True)
+            pad_idx: Padding token index (default: 0)
+            use_bilstm_encoder: Whether to use BiLSTM+MDSA-C on visual features before decoding (default: False)
+            device: Device to run on (default: 'cpu')
+            **kwargs: Additional keyword arguments (silently ignored for config compatibility)
         """
         super().__init__()
+        
+        # Set embed_dim with inference logic
+        if embed_dim is None:
+            # Default to 256 if not provided
+            embed_dim = 256
         
         self.vocab_size = vocab_size
         self.embed_dim = embed_dim
